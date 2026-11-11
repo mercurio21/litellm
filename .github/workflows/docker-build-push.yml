@@ -1,0 +1,40 @@
+name: Build and push image
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/mercurio21/litellm:latest
+
+  deploy-railway:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Railway redeploy
+        run: |
+          curl --fail -sS -X POST \
+            -H "Project-Access-Token: ${{ secrets.RAILWAY_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --data '{"query":"mutation($id: String!, $envId: String!) { serviceInstanceRedeploy(serviceId: $id, environmentId: $envId) }","variables":{"id":"${{ secrets.RAILWAY_SERVICE_ID }}","envId":"${{ secrets.RAILWAY_ENVIRONMENT_ID }}"}}' \
+            https://backboard.railway.com/graphql/v2
