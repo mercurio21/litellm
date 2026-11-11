@@ -26,3 +26,7 @@ general_settings:
 litellm_settings:
   drop_params: true
   callbacks: anthropic_oauth_identity.proxy_handler_instance
+
+environment_variables:
+  MAX_STRING_LENGTH_PROMPT_IN_DB: "10000000"
+  MAX_STRING_LENGTH_STDOUT_LOG: "10000000"
