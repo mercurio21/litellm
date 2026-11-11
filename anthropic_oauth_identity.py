@@ -65,24 +65,30 @@ _aliases_cache_at = 0.0
 
 
 def _fetch_anthropic_aliases() -> set[str]:
-    """Read the in-process router's model_list and return every model_name
-    backed by an Anthropic deployment, identified via LiteLLM's own
-    model_info.litellm_provider field — the canonical provider classification
-    LiteLLM computes itself for EVERY deployment (from its built-in cost map),
-    regardless of how that deployment's config/credential happens to be
-    shaped. This works uniformly whether the model was defined in YAML with
-    an "anthropic/..." prefix, added via Admin UI/DB with a separate
-    custom_llm_provider field, or named anything at all — model_name is an
-    arbitrary human label and was never a reliable signal on its own.
-    Earlier versions of this function matched only litellm_params.model's
-    "anthropic/" prefix, which silently missed every DB-added deployment
-    (confirmed live 2026-11-11: a model named "sonnet-5" stored via Admin UI
-    with litellm_params.model="claude-sonnet-5" + custom_llm_provider=
-    "anthropic" was invisible to that check, so the billing-header fix never
-    applied and every call hit the exact masked 429 rate_limit_error this
-    module exists to prevent). Never raises; returns an empty set if the
-    router isn't populated yet (e.g. during startup) — callers keep the
-    previous cached value then."""
+    """Read the in-process router's model_list and return every user-facing
+    model alias backed by an Anthropic deployment. Anthropic classification
+    uses LiteLLM's own model_info.litellm_provider field (the canonical
+    provider tag it computes for EVERY deployment from its built-in cost
+    map) with a litellm_params.custom_llm_provider / "anthropic/"-prefix
+    fallback — works regardless of how the deployment's config/credential
+    is shaped.
+
+    The alias itself is read from model_info.team_public_model_name first,
+    falling back to model_name. This fork's Team BYOK feature stores an
+    internal UUID placeholder in model_name (e.g.
+    "model_name_<team_id>_<uuid>") and keeps the real user-facing alias
+    (e.g. "sonnet-5") in model_info.team_public_model_name instead —
+    confirmed live 2026-11-11 via direct router dump. Matching only
+    model_name silently misses every team-scoped deployment (in this fork's
+    setup, that's ALL of them), so every Anthropic call skipped the
+    billing-header fix and hit the exact masked 429 rate_limit_error this
+    module exists to prevent, even though the earlier litellm_provider-based
+    classification itself was correct. Plain config.yaml setups without
+    Team BYOK still carry the real alias in model_name directly, so both
+    fields are checked.
+
+    Never raises; returns an empty set if the router isn't populated yet
+    (e.g. during startup) — callers keep the previous cached value then."""
     try:
         from litellm.proxy.proxy_server import llm_router
     except Exception:
@@ -93,17 +99,26 @@ def _fetch_anthropic_aliases() -> set[str]:
 
     aliases: set[str] = set()
     for entry in (getattr(llm_router, "model_list", None) or []):
-        model_name = entry.get("model_name", "")
-        if not model_name:
-            continue
         model_info = entry.get("model_info") or {}
         params = entry.get("litellm_params") or {}
         provider = model_info.get("litellm_provider") or params.get(
             "custom_llm_provider"
         )
         underlying = params.get("model", "")
-        if provider == "anthropic" or underlying.startswith("anthropic/"):
-            aliases.add(model_name)
+        is_anthropic = provider == "anthropic" or underlying.startswith("anthropic/")
+        if not is_anthropic:
+            continue
+        # This fork's Team BYOK feature stores an internal UUID-based
+        # placeholder in model_name (e.g. "model_name_<team_id>_<uuid>") and
+        # keeps the real user-facing alias in model_info.team_public_model_name
+        # instead — confirmed live 2026-11-11 via direct router dump; matching
+        # only model_name here always misses every team-scoped deployment,
+        # which in this fork's setup is ALL of them. Plain config.yaml setups
+        # (no team BYOK) still carry the real alias in model_name itself, so
+        # check both and let whichever is populated win.
+        for name in (model_info.get("team_public_model_name"), entry.get("model_name")):
+            if name:
+                aliases.add(name)
     return aliases
 
 
