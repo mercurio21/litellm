@@ -54,6 +54,7 @@ short TTL to avoid rebuilding the set on every single request.
 """
 
 import json
+import sys
 import time
 
 from litellm.integrations.custom_logger import CustomLogger
@@ -307,3 +308,10 @@ class AnthropicOAuthIdentityHandler(CustomLogger):
 
 
 proxy_handler_instance = AnthropicOAuthIdentityHandler()
+
+# One-time load marker so the patch's presence is visible in container logs.
+print(
+    "[anthropic_oauth_identity] billing-header + tool-rename patch loaded",
+    file=sys.stderr,
+    flush=True,
+)
