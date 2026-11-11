@@ -66,9 +66,23 @@ _aliases_cache_at = 0.0
 
 def _fetch_anthropic_aliases() -> set[str]:
     """Read the in-process router's model_list and return every model_name
-    whose underlying litellm_params.model targets the anthropic provider.
-    Never raises; returns an empty set if the router isn't populated yet
-    (e.g. during startup) — callers keep the previous cached value then."""
+    backed by an Anthropic deployment, identified via LiteLLM's own
+    model_info.litellm_provider field — the canonical provider classification
+    LiteLLM computes itself for EVERY deployment (from its built-in cost map),
+    regardless of how that deployment's config/credential happens to be
+    shaped. This works uniformly whether the model was defined in YAML with
+    an "anthropic/..." prefix, added via Admin UI/DB with a separate
+    custom_llm_provider field, or named anything at all — model_name is an
+    arbitrary human label and was never a reliable signal on its own.
+    Earlier versions of this function matched only litellm_params.model's
+    "anthropic/" prefix, which silently missed every DB-added deployment
+    (confirmed live 2026-11-11: a model named "sonnet-5" stored via Admin UI
+    with litellm_params.model="claude-sonnet-5" + custom_llm_provider=
+    "anthropic" was invisible to that check, so the billing-header fix never
+    applied and every call hit the exact masked 429 rate_limit_error this
+    module exists to prevent). Never raises; returns an empty set if the
+    router isn't populated yet (e.g. during startup) — callers keep the
+    previous cached value then."""
     try:
         from litellm.proxy.proxy_server import llm_router
     except Exception:
@@ -80,8 +94,15 @@ def _fetch_anthropic_aliases() -> set[str]:
     aliases: set[str] = set()
     for entry in (getattr(llm_router, "model_list", None) or []):
         model_name = entry.get("model_name", "")
-        underlying = (entry.get("litellm_params") or {}).get("model", "")
-        if model_name and underlying.startswith("anthropic/"):
+        if not model_name:
+            continue
+        model_info = entry.get("model_info") or {}
+        params = entry.get("litellm_params") or {}
+        provider = model_info.get("litellm_provider") or params.get(
+            "custom_llm_provider"
+        )
+        underlying = params.get("model", "")
+        if provider == "anthropic" or underlying.startswith("anthropic/"):
             aliases.add(model_name)
     return aliases
 
