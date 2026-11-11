@@ -10,7 +10,7 @@
 
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
-  store_prompts_in_spend_logs: true
+  store_prompts_in_spend_logs: false
   store_model_in_db: true
   # Single-replica deployment on Railway with Serverless/sleep enabled
   # (https://docs.railway.com/deployments/serverless). Railway puts a service
