@@ -2663,11 +2663,8 @@ class ModelManagementAuthChecks:
         team_obj: LiteLLM_TeamTable | None = None,
         premium_user: bool = False,
     ) -> Literal[True]:
-        if premium_user is False:
-            raise HTTPException(
-                status_code=403,
-                detail={"error": CommonProxyErrors.not_premium_user.value},
-            )
+        # mercurio21 patch: Team BYOK unlocked for self-hosted use — upstream
+        # gates this behind a premium_user/Enterprise-license check.
         if user_api_key_dict.user_role and user_api_key_dict.user_role == LitellmUserRoles.PROXY_ADMIN:
             return True
         elif team_obj is None or not is_team_admin(user_api_key_dict=user_api_key_dict, team_obj=team_obj):
@@ -2739,11 +2736,8 @@ class ModelManagementAuthChecks:
     ) -> Literal[True]:
         if model_params.model_info is None or model_params.model_info.team_id is None:
             return True
-        if model_params.model_info.team_id is not None and premium_user is not True:
-            raise HTTPException(
-                status_code=403,
-                detail={"error": CommonProxyErrors.not_premium_user.value},
-            )
+        # mercurio21 patch: Team BYOK unlocked for self-hosted use — upstream
+        # gates assigning a model to a team_id behind premium_user/Enterprise.
 
         _existing_team_row: Final = await _repo_team_table(prisma_client).find_unique(
             where={"team_id": model_params.model_info.team_id}
