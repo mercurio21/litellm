@@ -12,6 +12,17 @@ general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
   store_prompts_in_spend_logs: false
   store_model_in_db: true
+  # Single-replica deployment on Railway with Serverless/sleep enabled
+  # (https://docs.railway.com/deployments/serverless). Railway puts a service
+  # to sleep only after 5-10 min with zero *outbound* traffic, and explicitly
+  # lists "keeping active database connections open" as something that
+  # prevents sleep. The defaults below poll the DB every 30s and run
+  # background health checks on a timer — both generate outbound traffic on
+  # a fixed schedule regardless of real requests, so the proxy would never
+  # actually go idle. Stretched out here since we don't need fast multi-pod
+  # convergence (only one replica) or a self-driven health loop.
+  proxy_config_reload_interval_seconds: 86400  # once/day instead of every 30s
+  background_health_checks: false              # health checks only run inline, on demand
 
 litellm_settings:
   drop_params: true
