@@ -1,5 +1,5 @@
 # mercurio21 fork: official LiteLLM image + our patched source files on top.
-# This branch is based on the upstream release tag below; the three patched
+# This branch is based on the upstream release tag below; the two patched
 # files are taken from the same tag, so they match the installed package.
 # No patch logic lives here — all behaviour changes are commits in the tree.
 # To upgrade: rebase the fork on the new tag, bump LITELLM_TAG + digest below.
@@ -11,7 +11,6 @@ USER root
 ARG SP=/app/.venv/lib/python3.13/site-packages
 COPY litellm/proxy/auth/litellm_license.py ${SP}/litellm/proxy/auth/litellm_license.py
 COPY litellm/proxy/management_endpoints/model_management_endpoints.py ${SP}/litellm/proxy/management_endpoints/model_management_endpoints.py
-COPY litellm/proxy/proxy_server.py ${SP}/litellm/proxy/proxy_server.py
 
 COPY config.yaml /app/config.yaml
 COPY anthropic_oauth_identity.py /app/anthropic_oauth_identity.py
