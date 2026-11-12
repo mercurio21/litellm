@@ -5,8 +5,8 @@
 # правка моделей/ключей через Admin UI → LLM Credentials / Models + Endpoints,
 # не здесь.
 #
-# Team BYOK (team-scoped models/credentials, normally an Enterprise-only
-# feature) is unlocked in this fork — see model_management_endpoints.py patch.
+# Team BYOK / premium features are unlocked in this fork's source
+# (litellm/proxy/auth/litellm_license.py: LicenseCheck.is_premium -> True).
 
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
@@ -22,6 +22,10 @@ general_settings:
   # convergence (only one replica) or a self-driven health loop.
   proxy_config_reload_interval_seconds: 86400  # once/day instead of every 30s
   background_health_checks: false              # health checks only run inline, on demand
+  # Fork flag (proxy_server.py): skip the once-a-minute worker-heartbeat DB upsert
+  # that would keep a scale-to-zero Postgres awake. Banner hidden via env
+  # LITELLM_DISABLE_NO_REDIS_WARNING=true on Railway.
+  disable_worker_heartbeat: true
 
 litellm_settings:
   drop_params: true
