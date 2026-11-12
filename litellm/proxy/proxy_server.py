@@ -11655,19 +11655,15 @@ class ProxyStartupEvent:
 
         ### PROXY WORKER HEARTBEAT ###
         worker_heartbeat: Final = ProxyWorkerHeartbeat(prisma_client=prisma_client)
-        # mercurio21: `disable_worker_heartbeat: true` in general_settings skips the
-        # once-a-minute DB upsert, which otherwise keeps a scale-to-zero Postgres awake.
-        # The heartbeat only feeds the "no Redis on multiple workers" UI banner.
-        if general_settings.get("disable_worker_heartbeat", False) is not True:
-            await worker_heartbeat.beat()
-            scheduler.add_job(
-                worker_heartbeat.beat,
-                "interval",
-                seconds=PROXY_WORKER_HEARTBEAT_INTERVAL_SECONDS,
-                id="proxy_worker_heartbeat_job",
-                replace_existing=True,
-                misfire_grace_time=APSCHEDULER_MISFIRE_GRACE_TIME,
-            )
+        await worker_heartbeat.beat()
+        scheduler.add_job(
+            worker_heartbeat.beat,
+            "interval",
+            seconds=PROXY_WORKER_HEARTBEAT_INTERVAL_SECONDS,
+            id="proxy_worker_heartbeat_job",
+            replace_existing=True,
+            misfire_grace_time=APSCHEDULER_MISFIRE_GRACE_TIME,
+        )
 
         ### RESET BUDGET ###
         if general_settings.get("disable_reset_budget", False) is False:
