@@ -99,6 +99,14 @@ class LicenseCheck:
 
     def is_premium(self) -> bool:
         """
+        mercurio21 patch: self-hosted fork, all premium/Enterprise-gated features
+        (e.g. Team BYOK) are enabled unconditionally; no license key is required.
+        Every `premium_user` flag in the proxy is derived from this method.
+        """
+        return True
+
+    def _is_premium_upstream(self) -> bool:
+        """
         1. verify_license_without_api_request: checks if license was generate using private / public key pair
         2. _verify: checks if license is valid calling litellm API. This is the old way we were generating/validating license
         """
