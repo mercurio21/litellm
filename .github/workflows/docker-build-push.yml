@@ -25,7 +25,9 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
-          tags: ghcr.io/mercurio21/litellm:latest
+          tags: |
+            ghcr.io/mercurio21/litellm:latest
+            ghcr.io/mercurio21/litellm:sha-${{ github.sha }}
 
   deploy-railway:
     needs: build-and-push
