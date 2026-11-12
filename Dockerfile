@@ -1,41 +1,25 @@
-# mercurio21 fork — overlay our 2-line Team BYOK patch and config onto the
-# official published image instead of rebuilding litellm from source
-# (rebuilding from source takes 15-20 min and is flaky on apk mirrors here;
-# this build takes seconds).
-FROM ghcr.io/berriai/litellm:main-stable
+# mercurio21 fork: official LiteLLM image + our patched source files on top.
+# This branch is based on the upstream release tag below; the three patched
+# files are taken from the same tag, so they match the installed package.
+# No patch logic lives here — all behaviour changes are commits in the tree.
+# To upgrade: rebase the fork on the new tag, bump LITELLM_TAG + digest below.
+ARG LITELLM_TAG=v1.110.0-rc.2
+FROM ghcr.io/berriai/litellm:${LITELLM_TAG}@sha256:56310c2bd785547a370778a9dc8bee7fdb606c3f4f855b36fb4b4c85eb1329c5
 
 USER root
 
-# Patch: unlock Team BYOK (per-team model/credential) without an Enterprise
-# license. See litellm/proxy/management_endpoints/model_management_endpoints.py
-# in this repo for the annotated source of truth; this script mirrors that
-# diff onto the installed package inside the image.
-RUN set -eu; \
-    f=$(python -c "import os, litellm; print(os.path.join(os.path.dirname(litellm.__file__), 'proxy/management_endpoints/model_management_endpoints.py'))"); \
-    python - "$f" <<'EOF'
-import re, sys
-path = sys.argv[1]
-src = open(path).read()
-
-pattern_a = re.compile(
-    r'if premium_user is False:\s*\n\s*raise HTTPException\(\s*\n\s*status_code=403,\s*\n\s*detail=\{"error": CommonProxyErrors\.not_premium_user\.value\},\s*\n\s*\)\s*\n'
-)
-pattern_b = re.compile(
-    r'if model_params\.model_info\.team_id is not None and premium_user is not True:\s*\n\s*raise HTTPException\(\s*\n\s*status_code=403,\s*\n\s*detail=\{"error": CommonProxyErrors\.not_premium_user\.value\},\s*\n\s*\)\s*\n'
-)
-
-new_src, n1 = pattern_a.subn('', src, count=1)
-new_src, n2 = pattern_b.subn('', new_src, count=1)
-
-if n1 != 1 or n2 != 1:
-    sys.stderr.write(f"mercurio21 patch FAILED to match (gate_a={n1}, gate_b={n2}) — upstream source changed, update the patch\n")
-    sys.exit(1)
-
-open(path, 'w').write(new_src)
-sys.stderr.write("mercurio21 Team BYOK patch applied OK\n")
-EOF
+ARG SP=/app/.venv/lib/python3.13/site-packages
+COPY litellm/proxy/auth/litellm_license.py ${SP}/litellm/proxy/auth/litellm_license.py
+COPY litellm/proxy/management_endpoints/model_management_endpoints.py ${SP}/litellm/proxy/management_endpoints/model_management_endpoints.py
+COPY litellm/proxy/proxy_server.py ${SP}/litellm/proxy/proxy_server.py
 
 COPY config.yaml /app/config.yaml
 COPY anthropic_oauth_identity.py /app/anthropic_oauth_identity.py
 
+# Fail the build if the overlay does not import against the base image.
+RUN python -c "import litellm.proxy.proxy_server, litellm.proxy.auth.litellm_license as l; assert l.LicenseCheck().is_premium() is True"
+
 USER 65532:0
+
+# Entrypoint runs plain `litellm` unless given args; load our config explicitly.
+CMD ["--config", "/app/config.yaml"]
