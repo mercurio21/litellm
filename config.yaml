@@ -14,6 +14,8 @@ general_settings:
 
 litellm_settings:
   drop_params: true
+  # Skills Hub: публичный индекс /.well-known/skills/index.json, чтобы агенты ставили скиллы через `hermes skills install`.
+  public_skills_index: true
   callbacks: anthropic_oauth_identity.proxy_handler_instance
 
 environment_variables:
