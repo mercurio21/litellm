@@ -224,7 +224,9 @@ class AnthropicOAuthIdentityHandler(CustomLogger):
             if existing_system is None or existing_system == "":
                 data["system"] = [billing_block]
             elif isinstance(existing_system, str):
-                data["system"] = f"{_BILLING_HEADER_TEXT}\n\n{existing_system}"
+                # Keep the caller's prompt in its OWN block: glued into one string with the
+                # billing line, Anthropic drops the whole block and the model sees no system prompt.
+                data["system"] = [billing_block, {"type": "text", "text": existing_system}]
             elif isinstance(existing_system, list):
                 data["system"] = [billing_block] + existing_system
             else:
@@ -243,8 +245,8 @@ class AnthropicOAuthIdentityHandler(CustomLogger):
             if existing_system is None or existing_system == "":
                 new_content = [billing_block]
             elif isinstance(existing_system, str):
-                # Plain-string system prompt — keep it a string, just prepend our line.
-                new_content = f"{_BILLING_HEADER_TEXT}\n\n{existing_system}"
+                # Plain-string system prompt: separate block (a merged string is dropped upstream).
+                new_content = [billing_block, {"type": "text", "text": existing_system}]
             elif isinstance(existing_system, list):
                 # Structured system prompt (list of content blocks). Must stay a list
                 # of blocks; stringifying it (old bug) corrupts special blocks.
