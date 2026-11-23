@@ -18,6 +18,14 @@ litellm_settings:
   public_skills_index: true
   callbacks: anthropic_oauth_identity.proxy_handler_instance
 
+# Sticky sessions: ход сессии идёт на тот же деплоймент (аккаунт), чтобы не терять prompt-кэш Anthropic.
+# Session id: metadata.session_id или заголовок x-litellm-session-id. routing_strategy здесь не задаём.
+# Пины живут в памяти процесса (Redis нет): рестарт роутера сбрасывает все пины.
+router_settings:
+  optional_pre_call_checks: ["session_affinity"]
+  deployment_affinity_ttl_seconds: 2592000   # idle TTL 30 дней (по умолчанию 3600)
+  session_affinity_repin_on_failover: true
+
 environment_variables:
   MAX_STRING_LENGTH_PROMPT_IN_DB: "10000000"
   MAX_STRING_LENGTH_STDOUT_LOG: "10000000"
