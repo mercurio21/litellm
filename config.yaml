@@ -1,5 +1,5 @@
 # LiteLLM Proxy — единый пул провайдеров для фермы Hermes-профилей и Docker-детей.
-# Admin UI: /ui, логин admin, пароль — LITELLM_MASTER_KEY.
+# Admin UI: /ui. Форму логина отключает LITELLM_UI_AUTOLOGIN=true (ui_autologin.py), иначе admin / LITELLM_MASTER_KEY.
 #
 # model_list и credential_list хранятся в БД (store_model_in_db: true ниже) —
 # правка моделей/ключей через Admin UI → LLM Credentials / Models + Endpoints,
@@ -16,7 +16,9 @@ litellm_settings:
   drop_params: true
   # Skills Hub: публичный индекс /.well-known/skills/index.json, чтобы агенты ставили скиллы через `hermes skills install`.
   public_skills_index: true
-  callbacks: anthropic_oauth_identity.proxy_handler_instance
+  callbacks:
+    - anthropic_oauth_identity.proxy_handler_instance
+    - ui_autologin.proxy_handler_instance  # no-op unless LITELLM_UI_AUTOLOGIN=true
 
 environment_variables:
   MAX_STRING_LENGTH_PROMPT_IN_DB: "10000000"
