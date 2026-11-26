@@ -14,6 +14,7 @@ COPY litellm/proxy/management_endpoints/model_management_endpoints.py ${SP}/lite
 
 COPY config.yaml /app/config.yaml
 COPY anthropic_oauth_identity.py /app/anthropic_oauth_identity.py
+COPY ui_autologin.py /app/ui_autologin.py
 
 # Fail the build if the overlay does not import against the base image.
 RUN python -c "import litellm.proxy.proxy_server, litellm.proxy.auth.litellm_license as l; assert l.LicenseCheck().is_premium() is True"
